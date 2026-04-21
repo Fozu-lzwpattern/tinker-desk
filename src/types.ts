@@ -65,6 +65,7 @@ export type HookEvent =
   | 'agent_status_changed'
   | 'buddy_found'
   | 'buddy_lost'
+  | 'publish_intent'
   // Local/system events
   | 'pet_clicked'
   | 'pet_double_clicked'

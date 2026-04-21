@@ -12,15 +12,27 @@ import { BubbleOverlay } from './components/BubbleOverlay';
 import { StatusBar } from './components/StatusBar';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ContextMenu } from './components/ContextMenu';
+import { ChatPanel } from './components/ChatPanel';
 import { usePetBehavior } from './hooks/usePetBehavior';
 import { useHookEngine } from './hooks/useHookEngine';
+import { useTinkerNetwork } from './hooks/useTinkerNetwork';
 import { useAppStore } from './store/appStore';
 
 function App() {
   // Start autonomous behavior engine
   usePetBehavior();
 
+  // Hook engine
   const { emit } = useHookEngine();
+
+  // Tinker network
+  const { setHookEmit } = useTinkerNetwork();
+
+  // Wire hook engine emit into the network layer
+  useEffect(() => {
+    setHookEmit(emit);
+  }, [emit, setHookEmit]);
+
   const addBubble = useAppStore((s) => s.addBubble);
 
   // Emit startup hook
@@ -62,6 +74,7 @@ function App() {
       <StatusBar />
       <SettingsPanel />
       <ContextMenu />
+      <ChatPanel />
 
       {/* Global CSS animations */}
       <style>{`
@@ -72,6 +85,14 @@ function App() {
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </>

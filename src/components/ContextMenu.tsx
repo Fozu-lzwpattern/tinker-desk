@@ -6,6 +6,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAppStore } from '../store/appStore';
+import { useTinkerNetwork } from '../hooks/useTinkerNetwork';
 import type { PetState } from '../types';
 
 interface MenuPosition {
@@ -30,11 +31,14 @@ export function ContextMenu() {
   const setPetState = useAppStore((s) => s.setPetState);
   const addBubble = useAppStore((s) => s.addBubble);
   const petName = useAppStore((s) => s.settings.petName);
+  const isOnline = useAppStore((s) => s.isOnline);
+  const connectedPeers = useAppStore((s) => s.connectedPeers);
+
+  const { findBuddy } = useTinkerNetwork();
 
   // Listen for right-click on the pet sprite
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      // Check if right-click is near the pet
       const pos = useAppStore.getState().position;
       const dx = e.clientX - (pos.x + 40);
       const dy = e.clientY - (pos.y + 40);
@@ -57,15 +61,9 @@ export function ContextMenu() {
   }, [menu]);
 
   const handleFindBuddy = useCallback(() => {
-    setPetState('searching');
-    addBubble({
-      text: '🎲 Looking for a buddy...',
-      type: 'speech',
-      expiresAt: Date.now() + 5000,
-    });
+    findBuddy();
     setMenu(null);
-    // TODO: emit intent through tinker network
-  }, [setPetState, addBubble]);
+  }, [findBuddy]);
 
   if (!menu) return null;
 
@@ -88,7 +86,12 @@ export function ContextMenu() {
       }}
       onClick={(e) => e.stopPropagation()}
     >
-      <MenuItem icon="🎲" label="Find Buddy" hint="碰碰碰" onClick={handleFindBuddy} />
+      <MenuItem
+        icon="🎲"
+        label="Find Buddy"
+        hint={isOnline ? `${connectedPeers} online` : 'offline'}
+        onClick={handleFindBuddy}
+      />
       <Separator />
       <MenuItem
         icon="🎭"
@@ -124,7 +127,7 @@ export function ContextMenu() {
         label={`About ${petName}`}
         onClick={() => {
           addBubble({
-            text: `Hi! I'm ${petName} ✨\nPowered by tinker network`,
+            text: `Hi! I'm ${petName} ✨\n${isOnline ? `Connected • ${connectedPeers} peers` : 'Offline mode'}\nPowered by tinker network`,
             type: 'speech',
             expiresAt: Date.now() + 4000,
           });
