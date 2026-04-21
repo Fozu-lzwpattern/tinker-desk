@@ -5,8 +5,9 @@
  * Floats as a dark panel, can be opened from right-click menu or tray.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useAppStore } from '../store/appStore';
+import { getInstalledThemes } from '../themes/ThemeLoader';
 import type { HookDefinition, HookEvent, HookActionType } from '../types';
 
 // P2 #8 + #9: extended Tab type with 'theme' and 'security'
@@ -224,105 +225,60 @@ interface RegisteredTheme {
 }
 
 function ThemeTab({ settings, updateSettings }: TabProps) {
-  const [themeInput, setThemeInput] = useState(settings.activeTheme);
+  // Use getInstalledThemes which includes both built-ins and custom themes
+  const allThemes = useMemo(() => getInstalledThemes(), []);
 
-  // Load registered themes from localStorage
-  const registeredThemes = useCallback((): RegisteredTheme[] => {
-    try {
-      const raw = localStorage.getItem('tinker-desk-themes');
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? (parsed as RegisteredTheme[]) : [];
-    } catch {
-      return [];
-    }
-  }, [])();
-
-  const applyTheme = () => {
-    const name = themeInput.trim();
-    if (!name) return;
-    updateSettings({ activeTheme: name });
+  const themeEmojis: Record<string, string> = {
+    default: '🟢',
+    kanga: '🦘',
+    pixel: '👾',
+    neko: '🐱',
+    bot: '🤖',
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <Field label="Active Theme">
-        <div
-          style={{
-            padding: '6px 10px',
-            background: '#1e293b',
-            border: '1px solid #3b82f6',
-            borderRadius: 6,
-            color: '#38bdf8',
-            fontSize: 13,
-            fontWeight: 600,
-            fontFamily: 'monospace',
-          }}
-        >
-          {settings.activeTheme}
-        </div>
-        <div style={hintStyle}>Currently active theme directory</div>
-      </Field>
-
-      <Field label="Set Theme Directory">
-        <div style={{ display: 'flex', gap: 6 }}>
-          <input
-            type="text"
-            value={themeInput}
-            onChange={(e) => setThemeInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && applyTheme()}
-            placeholder="e.g. my-theme"
-            style={{ ...inputStyle, flex: 1 }}
-          />
-          <button onClick={applyTheme} style={btnStyle}>
-            Apply
-          </button>
-        </div>
-      </Field>
-
-      <Field label="Registered Themes">
-        {registeredThemes.length === 0 ? (
-          <div style={hintStyle}>No themes found in localStorage.</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
-            {registeredThemes.map((t) => (
+      <Field label="Choose Theme">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+          {allThemes.map((t) => {
+            const isActive = t.id === settings.activeTheme;
+            const emoji = themeEmojis[t.id] ?? '🎨';
+            return (
               <div
-                key={t.name}
+                key={t.id}
+                onClick={() => {
+                  if (!isActive) updateSettings({ activeTheme: t.id });
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '6px 10px',
-                  background: '#1e293b',
-                  borderRadius: 6,
-                  border: t.name === settings.activeTheme ? '1px solid #3b82f6' : '1px solid #334155',
+                  padding: '10px 14px',
+                  background: isActive ? '#1e3a5f' : '#1e293b',
+                  borderRadius: 8,
+                  border: isActive ? '2px solid #3b82f6' : '1px solid #334155',
+                  cursor: isActive ? 'default' : 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                <div>
-                  <span style={{ fontWeight: 500 }}>{t.name}</span>
-                  <span style={{ color: '#64748b', marginLeft: 8, fontSize: 11 }}>
-                    v{t.version}
-                    {t.author ? ` · ${t.author}` : ''}
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 22 }}>{emoji}</span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{t.name}</div>
+                    {t.description && (
+                      <div style={{ color: '#64748b', fontSize: 11, marginTop: 2 }}>{t.description}</div>
+                    )}
+                  </div>
                 </div>
-                {t.name !== settings.activeTheme && (
-                  <button
-                    onClick={() => {
-                      setThemeInput(t.name);
-                      updateSettings({ activeTheme: t.name });
-                    }}
-                    style={{ ...btnStyle, padding: '3px 8px', fontSize: 11 }}
-                  >
-                    Use
-                  </button>
-                )}
-                {t.name === settings.activeTheme && (
-                  <span style={{ fontSize: 11, color: '#3b82f6' }}>✓ active</span>
+                {isActive ? (
+                  <span style={{ fontSize: 12, color: '#3b82f6', fontWeight: 600 }}>✓ Active</span>
+                ) : (
+                  <span style={{ fontSize: 11, color: '#94a3b8' }}>Click to use</span>
                 )}
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </Field>
 
       <div
@@ -336,8 +292,7 @@ function ThemeTab({ settings, updateSettings }: TabProps) {
           lineHeight: 1.5,
         }}
       >
-        💡 Place theme folders in your themes directory. Each must contain a{' '}
-        <code style={{ color: '#94a3b8' }}>theme.json</code> manifest.
+        💡 Custom themes: place a folder with <code style={{ color: '#94a3b8' }}>theme.json</code> in your themes directory and register via the API.
       </div>
     </div>
   );
