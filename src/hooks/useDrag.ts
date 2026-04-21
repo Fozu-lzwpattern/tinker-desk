@@ -1,11 +1,21 @@
 /**
  * Drag behavior for the desktop pet
- * Supports both mouse and touch events
+ *
+ * Two modes:
+ * - **Tauri mode**: Uses Tauri's native `startDragging()` to move the window itself
+ * - **Browser mode**: Moves the pet element within the viewport (CSS position)
+ *
+ * Click detection: if pointer barely moved (<5px), treat as click, not drag.
  */
 
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useHookEngine } from './useHookEngine';
+
+/** Detect if running inside Tauri WebView */
+function isTauri(): boolean {
+  return !!(window as any).__TAURI_INTERNALS__;
+}
 
 export function useDrag() {
   const setPosition = useAppStore((s) => s.setPosition);
@@ -15,32 +25,65 @@ export function useDrag() {
 
   const offset = useRef({ x: 0, y: 0 });
   const dragStartPos = useRef({ x: 0, y: 0 });
+  const didMove = useRef(false);
 
   const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      const pos = useAppStore.getState().position;
-      offset.current = {
-        x: e.clientX - pos.x,
-        y: e.clientY - pos.y,
-      };
+    async (e: React.PointerEvent) => {
       dragStartPos.current = { x: e.clientX, y: e.clientY };
-      setDragging(true);
-      setPetState('drag');
-      emit('pet_dragged', { x: pos.x, y: pos.y });
+      didMove.current = false;
 
-      // Capture pointer for smooth dragging even outside window
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      if (isTauri()) {
+        // In Tauri: use native window dragging
+        // We defer the actual startDragging to pointer move (to detect click vs drag)
+        setDragging(true);
+        setPetState('drag');
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      } else {
+        // In browser: move the element within viewport
+        const pos = useAppStore.getState().position;
+        offset.current = {
+          x: e.clientX - pos.x,
+          y: e.clientY - pos.y,
+        };
+        setDragging(true);
+        setPetState('drag');
+        emit('pet_dragged', { x: pos.x, y: pos.y });
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      }
     },
     [setDragging, setPetState, emit]
   );
 
   const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
+    async (e: React.PointerEvent) => {
       if (!useAppStore.getState().isDragging) return;
-      setPosition({
-        x: e.clientX - offset.current.x,
-        y: e.clientY - offset.current.y,
-      });
+
+      const dx = e.clientX - dragStartPos.current.x;
+      const dy = e.clientY - dragStartPos.current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance > 5 && !didMove.current) {
+        didMove.current = true;
+
+        if (isTauri()) {
+          // Start native window drag — releases pointer capture automatically
+          try {
+            const { getCurrentWindow } = await import('@tauri-apps/api/window');
+            await getCurrentWindow().startDragging();
+          } catch (err) {
+            console.warn('[useDrag] startDragging failed:', err);
+          }
+          return;
+        }
+      }
+
+      if (!isTauri()) {
+        // Browser mode: move pet element
+        setPosition({
+          x: e.clientX - offset.current.x,
+          y: e.clientY - offset.current.y,
+        });
+      }
     },
     [setPosition]
   );
@@ -68,7 +111,11 @@ export function useDrag() {
         });
       }
 
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      try {
+        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {
+        // May already be released by Tauri's startDragging
+      }
     },
     [setDragging, setPetState, emit]
   );

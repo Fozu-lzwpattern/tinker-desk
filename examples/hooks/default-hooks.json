@@ -1,0 +1,60 @@
+[
+  {
+    "id": "greet-new-peer",
+    "name": "Greet New Peer",
+    "description": "Wave when a new peer is discovered",
+    "enabled": true,
+    "event": "peer_discovered",
+    "actions": [
+      { "type": "animate", "payload": { "state": "wave", "duration": 2000 } },
+      { "type": "show_bubble", "payload": { "text": "Oh! Someone's here! 👋", "type": "speech", "duration": 3000 } }
+    ],
+    "cooldownMs": 10000
+  },
+  {
+    "id": "celebrate-buddy",
+    "name": "Celebrate Buddy Match",
+    "description": "Party when a buddy is found",
+    "enabled": true,
+    "event": "buddy_found",
+    "actions": [
+      { "type": "set_state", "payload": { "state": "celebrate" } },
+      { "type": "show_bubble", "payload": { "text": "🎉 Found a buddy! Let's go!", "type": "notification", "duration": 4000 } }
+    ],
+    "cooldownMs": 5000
+  },
+  {
+    "id": "sad-buddy-lost",
+    "name": "Sad When Buddy Leaves",
+    "description": "Get sad when buddy disconnects",
+    "enabled": true,
+    "event": "buddy_lost",
+    "actions": [
+      { "type": "animate", "payload": { "state": "sad", "duration": 3000 } },
+      { "type": "show_bubble", "payload": { "text": "Buddy left... 😢", "type": "thought", "duration": 3000 } }
+    ],
+    "cooldownMs": 5000
+  },
+  {
+    "id": "click-react",
+    "name": "React to Click",
+    "description": "Get excited when clicked",
+    "enabled": true,
+    "event": "pet_clicked",
+    "actions": [
+      { "type": "animate", "payload": { "state": "excited", "duration": 1500 } }
+    ],
+    "cooldownMs": 2000
+  },
+  {
+    "id": "idle-think",
+    "name": "Idle Thoughts",
+    "description": "Occasionally show random thoughts when idle",
+    "enabled": true,
+    "event": "idle_timeout",
+    "actions": [
+      { "type": "show_bubble", "payload": { "text": "💭 I wonder what other tinkers are up to...", "type": "thought", "duration": 3000 } }
+    ],
+    "cooldownMs": 30000
+  }
+]

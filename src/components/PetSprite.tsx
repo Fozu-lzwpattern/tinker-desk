@@ -1,15 +1,24 @@
 /**
  * PetSprite — the visual representation of the desktop pet
  *
- * Renders the pet at its current position with the appropriate animation.
- * For the default theme, renders an SVG creature inline.
- * For custom themes, loads sprites from the theme directory.
+ * Two modes:
+ * - **Tauri mode**: Pet is centered in the transparent window.
+ *   The window itself IS the pet — dragging moves the window.
+ * - **Browser mode**: Pet is absolutely positioned, moves within the viewport.
+ *
+ * Default theme renders an SVG creature inline.
+ * Custom themes will load sprites from the theme directory.
  */
 
 import React, { useMemo } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useDrag } from '../hooks/useDrag';
 import type { PetState } from '../types';
+
+/** Detect if running inside Tauri WebView */
+function isTauri(): boolean {
+  return !!(window as any).__TAURI_INTERNALS__;
+}
 
 /** Default SVG pet — a cute tinker creature */
 function DefaultPetSVG({ state, size }: { state: PetState; size: number }) {
@@ -127,6 +136,16 @@ function DefaultPetSVG({ state, size }: { state: PetState; size: number }) {
           <text x="48" y="10" fill="#fbbf24" fontSize="12">🎉</text>
         </g>
       )}
+
+      {/* Chatting indicator */}
+      {state === 'chatting' && (
+        <g>
+          <circle cx="62" cy="30" r="6" fill="#3b82f6" opacity="0.8">
+            <animate attributeName="r" values="5;7;5" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <text x="57" y="34" fill="white" fontSize="8" fontFamily="monospace">💬</text>
+        </g>
+      )}
     </svg>
   );
 }
@@ -137,11 +156,27 @@ export function PetSprite() {
   const settings = useAppStore((s) => s.settings);
   const { handlePointerDown, handlePointerMove, handlePointerUp } = useDrag();
 
-  const size = 80;
+  const size = 120; // Bigger size for desktop pet
+  const tauriMode = isTauri();
 
-  return (
-    <div
-      style={{
+  // In Tauri mode: pet centered in window, window is the "sprite"
+  // In browser mode: pet uses CSS fixed positioning
+  const style: React.CSSProperties = tauriMode
+    ? {
+        position: 'absolute',
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: size,
+        height: size,
+        cursor: 'grab',
+        zIndex: 9999,
+        animation:
+          petState === 'idle'
+            ? `bounce ${1.5 / settings.animation.speed}s ease-in-out infinite`
+            : undefined,
+      }
+    : {
         position: 'fixed',
         left: position.x,
         top: position.y,
@@ -149,12 +184,15 @@ export function PetSprite() {
         height: size,
         cursor: 'grab',
         zIndex: 9999,
-        // Idle bounce animation
         animation:
           petState === 'idle'
             ? `bounce ${1.5 / settings.animation.speed}s ease-in-out infinite`
             : undefined,
-      }}
+      };
+
+  return (
+    <div
+      style={style}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

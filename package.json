@@ -1,6 +1,6 @@
 {
   "name": "tinker-desk",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Desktop companion pet powered by tinker social network",
   "private": true,
   "type": "module",
@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "relay": "node scripts/start-relay.js",
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "react": "^18.3.1",

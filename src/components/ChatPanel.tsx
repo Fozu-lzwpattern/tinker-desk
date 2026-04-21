@@ -1,13 +1,19 @@
 /**
  * ChatPanel — Minimal chat interface for DM with active buddy
  *
- * Shows when there's an active buddy connection.
- * Floats above the pet sprite.
+ * In Tauri mode: positioned to the right of center (relative to pet).
+ * In browser mode: follows the pet's CSS position.
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useTinkerNetwork } from '../hooks/useTinkerNetwork';
+import type { BridgeMessage } from '../network/TinkerBridge';
+
+/** Detect if running inside Tauri WebView */
+function isTauri(): boolean {
+  return !!(window as any).__TAURI_INTERNALS__;
+}
 
 interface ChatMessage {
   id: string;
@@ -20,12 +26,31 @@ export function ChatPanel() {
   const activeBuddy = useAppStore((s) => s.activeBuddy);
   const position = useAppStore((s) => s.position);
   const petName = useAppStore((s) => s.settings.petName);
-  const { sendChat } = useTinkerNetwork();
+  const { sendChat, bridge } = useTinkerNetwork();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [minimized, setMinimized] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Listen for incoming DMs from the buddy
+  useEffect(() => {
+    if (!bridge || !activeBuddy) return;
+
+    const unsub = bridge.on((ev) => {
+      if (ev.event === 'dm' && ev.msg.from === activeBuddy) {
+        setMessages((prev) => [
+          ...prev,
+          { id: ev.msg.id, from: 'buddy', text: ev.msg.content, time: Date.now() },
+        ]);
+        setTimeout(() => {
+          scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+        }, 50);
+      }
+    });
+
+    return unsub;
+  }, [bridge, activeBuddy]);
 
   const handleSend = useCallback(() => {
     if (!input.trim()) return;
@@ -36,7 +61,6 @@ export function ChatPanel() {
         { id: msg.id, from: 'me', text: input.trim(), time: Date.now() },
       ]);
       setInput('');
-      // Auto-scroll
       setTimeout(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
       }, 50);
@@ -45,14 +69,24 @@ export function ChatPanel() {
 
   if (!activeBuddy) return null;
 
+  const tauriMode = isTauri();
+
+  // Position for minimized badge
+  const minStyle: React.CSSProperties = tauriMode
+    ? { position: 'absolute', right: 20, top: '50%', transform: 'translateY(-50%)' }
+    : { position: 'fixed', left: position.x + 90, top: position.y - 10 };
+
+  // Position for full panel
+  const panelStyle: React.CSSProperties = tauriMode
+    ? { position: 'absolute', right: 10, top: 10 }
+    : { position: 'fixed', left: position.x + 90, top: position.y - 180 };
+
   if (minimized) {
     return (
       <div
         onClick={() => setMinimized(false)}
         style={{
-          position: 'fixed',
-          left: position.x + 90,
-          top: position.y - 10,
+          ...minStyle,
           zIndex: 20000,
           background: '#1e293b',
           border: '1px solid #334155',
@@ -72,9 +106,7 @@ export function ChatPanel() {
   return (
     <div
       style={{
-        position: 'fixed',
-        left: position.x + 90,
-        top: position.y - 180,
+        ...panelStyle,
         zIndex: 20000,
         width: 240,
         background: '#0f172a',

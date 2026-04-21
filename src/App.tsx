@@ -2,7 +2,7 @@
  * tinker-desk — Desktop companion pet powered by tinker social network
  *
  * Main application shell.
- * In Tauri mode: transparent window, always-on-top, click-through background
+ * In Tauri mode: transparent window, always-on-top, pet lives on your desktop
  * In browser mode: full window with white background (dev/preview)
  */
 
@@ -18,6 +18,11 @@ import { useHookEngine } from './hooks/useHookEngine';
 import { useTinkerNetwork } from './hooks/useTinkerNetwork';
 import { useAppStore } from './store/appStore';
 
+/** Detect if running inside Tauri WebView */
+function isTauri(): boolean {
+  return !!(window as any).__TAURI_INTERNALS__;
+}
+
 function App() {
   // Start autonomous behavior engine
   usePetBehavior();
@@ -26,7 +31,7 @@ function App() {
   const { emit } = useHookEngine();
 
   // Tinker network
-  const { setHookEmit } = useTinkerNetwork();
+  const { findBuddy, setHookEmit } = useTinkerNetwork();
 
   // Wire hook engine emit into the network layer
   useEffect(() => {
@@ -34,6 +39,7 @@ function App() {
   }, [emit, setHookEmit]);
 
   const addBubble = useAppStore((s) => s.addBubble);
+  const toggleSettings = useAppStore((s) => s.toggleSettings);
 
   // Emit startup hook
   useEffect(() => {
@@ -44,9 +50,11 @@ function App() {
     if (!greeted) {
       setTimeout(() => {
         addBubble({
-          text: 'Hi! Right-click me for options ✨',
+          text: isTauri()
+            ? 'Hi! I live on your desktop now~ ✨\nRight-click me for options!'
+            : 'Hi! Right-click me for options ✨',
           type: 'speech',
-          expiresAt: Date.now() + 5000,
+          expiresAt: Date.now() + 6000,
         });
         sessionStorage.setItem('tinker-greeted', '1');
       }, 1000);
@@ -67,11 +75,51 @@ function App() {
     };
   }, [emit]);
 
+  // ── Tauri tray event listeners ──────────────────────────────
+  useEffect(() => {
+    if (!isTauri()) return;
+
+    let unlisten1: (() => void) | undefined;
+    let unlisten2: (() => void) | undefined;
+
+    (async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        unlisten1 = await listen('tray-find-buddy', () => {
+          findBuddy();
+        });
+        unlisten2 = await listen('tray-settings', () => {
+          toggleSettings();
+        });
+      } catch (err) {
+        console.warn('[App] Failed to listen for tray events:', err);
+      }
+    })();
+
+    return () => {
+      unlisten1?.();
+      unlisten2?.();
+    };
+  }, [findBuddy, toggleSettings]);
+
+  // In Tauri mode, pet position is relative to window (center);
+  // the entire window moves when dragged. In browser mode, pet moves within viewport.
+  const tauriMode = isTauri();
+
   return (
-    <>
+    <div
+      style={{
+        width: '100vw',
+        height: '100vh',
+        // In browser mode, show a subtle background so you can see the pet
+        background: tauriMode ? 'transparent' : '#f8fafc',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
       <PetSprite />
       <BubbleOverlay />
-      <StatusBar />
+      {!tauriMode && <StatusBar />}
       <SettingsPanel />
       <ContextMenu />
       <ChatPanel />
@@ -95,7 +143,7 @@ function App() {
           to { transform: rotate(360deg); }
         }
       `}</style>
-    </>
+    </div>
   );
 }
 

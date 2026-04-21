@@ -11,10 +11,12 @@
  *           → evaluate condition (optional JS expression)
  *           → execute actions (set_state, play_sound, show_bubble, etc.)
  *           → respect cooldown
+ *       → play sound for event (via SoundEngine)
  */
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/appStore';
+import { playSoundForEvent } from '../sounds/SoundEngine';
 import type { HookAction, HookDefinition, HookEvent, PetState, Bubble } from '../types';
 
 // Cooldown tracker: hookId → last fired timestamp
@@ -26,7 +28,6 @@ function evaluateCondition(
   context: Record<string, unknown>
 ): boolean {
   try {
-    // Create a sandboxed evaluation (no access to global scope)
     const fn = new Function(
       ...Object.keys(context),
       `"use strict"; return (${condition});`
@@ -44,11 +45,13 @@ export function useHookEngine() {
   const setPetState = useAppStore((s) => s.setPetState);
   const addBubble = useAppStore((s) => s.addBubble);
 
-  // Keep a ref to latest hooks to avoid stale closures
+  // Keep a ref to latest hooks/sounds to avoid stale closures
   const hooksRef = useRef<HookDefinition[]>(settings.hooks);
+  const soundsRef = useRef(settings.sounds);
   useEffect(() => {
     hooksRef.current = settings.hooks;
-  }, [settings.hooks]);
+    soundsRef.current = settings.sounds;
+  }, [settings.hooks, settings.sounds]);
 
   /** Execute a single hook action */
   const executeAction = useCallback(
@@ -67,6 +70,8 @@ export function useHookEngine() {
               audio.volume = (action.payload.volume as number) ?? 0.5;
               audio.play().catch(() => {});
             } catch {}
+          } else if (action.payload?.builtin) {
+            playSoundForEvent(action.payload.builtin as string, {});
           }
           break;
 
@@ -92,7 +97,6 @@ export function useHookEngine() {
           break;
 
         case 'animate':
-          // One-shot animation — set state temporarily then revert
           if (action.payload?.state) {
             const prevState = useAppStore.getState().petState;
             setPetState(action.payload.state as PetState);
@@ -108,7 +112,6 @@ export function useHookEngine() {
           break;
 
         case 'custom':
-          // User-defined JS function (evaluated carefully)
           if (action.payload?.code) {
             try {
               const fn = new Function('store', `"use strict"; ${action.payload.code}`);
@@ -126,16 +129,16 @@ export function useHookEngine() {
     [setPetState, addBubble]
   );
 
-  /** Emit an event — processes all matching hooks */
+  /** Emit an event — processes all matching hooks + plays sound */
   const emit = useCallback(
     (event: HookEvent, context: Record<string, unknown> = {}) => {
+      // Play sound for this event (if configured or has builtin)
+      playSoundForEvent(event, soundsRef.current);
+
       const hooks = hooksRef.current;
 
       for (const hook of hooks) {
-        // Skip disabled hooks
         if (!hook.enabled) continue;
-
-        // Skip non-matching events
         if (hook.event !== event) continue;
 
         // Check cooldown
@@ -154,7 +157,6 @@ export function useHookEngine() {
           executeAction(action);
         }
 
-        // Update cooldown
         cooldowns.set(hook.id, Date.now());
       }
     },

@@ -1,132 +1,228 @@
 # tinker-desk 🐾
 
-Desktop companion pet powered by the [tinker](https://github.com/Fozu-lzwpattern/tinker) social network.
+> A desktop companion pet powered by the [tinker](https://github.com/Fozu-lzwpattern/tinker) social network.
 
-A transparent, always-on-top desktop creature that lives on your screen, socializes with other tinker-desk instances on the network, and is deeply customizable through themes, hooks, and personality settings.
+**tinker-desk** is a transparent, always-on-top desktop pet that lives on your screen. It walks, thinks, sleeps, waves — and can **find buddies** on the tinker P2P network.
 
-## ✨ Features
+Each instance is a fully autonomous node. No cloud. No central server. Just peers.
 
-- **🎨 Custom Themes** — Upload your own sprite sets (SVG/PNG/GIF) with `theme.json`
-- **🪝 Hook System** — Map any event → action. Extend behavior with JS expressions
-- **🔊 Sound Effects** — Custom audio for every event and state transition
-- **🎲 Find Buddy** — One-click "碰碰碰" to discover and connect with peers
-- **🌐 P2P Network** — Each instance is both a client and a relay (fully decentralized)
-- **🐾 Personality** — Configurable sociability, energy, and curiosity drive autonomous behavior
-- **📦 Zero Dependencies** — No cloud server needed. LAN discovery + optional bootstrap peers
+```
+┌─ Your Desktop ──────────────────────────────────┐
+│                                                   │
+│      💭 Looking for a buddy...                    │
+│        ╭──╮                                      │
+│       (°ᴗ°)  ← Your tinker pet                  │
+│       /    \                                      │
+│      ┗━━━━┛                                      │
+│                                                   │
+│  [Taskbar] ... [tinker-desk 🐾]                  │
+└───────────────────────────────────────────────────┘
+```
+
+## Features
+
+- 🐾 **Desktop Pet** — transparent window, always-on-top, lives on your screen
+- 🎲 **Find Buddy** — one-click "碰碰碰" to discover peers on the tinker network
+- 💬 **DM Chat** — chat with matched buddies through floating chat panel
+- 🎨 **Themes** — customizable pet appearance (SVG/PNG/GIF sprites)
+- 🔧 **Hook Engine** — extensible event→action system for custom behaviors
+- 🔊 **Sound Effects** — synthesized audio feedback (zero external files)
+- 📡 **P2P Network** — every instance can be both client AND relay
+- ⚙️ **Settings** — personality tuning, network config, animation speed
+- 💾 **Persistent** — all settings saved to localStorage
+
+## Quick Start
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) v18+
+- [Rust](https://rustup.rs/) (for Tauri)
+- Tauri CLI: `cargo install tauri-cli@^2`
+
+### Install & Run
+
+```bash
+# Clone
+git clone https://github.com/Fozu-lzwpattern/tinker-desk.git
+cd tinker-desk
+
+# Install dependencies
+npm install
+
+# Run as desktop app (Tauri)
+npm run tauri dev
+
+# Or preview in browser (development)
+npm run dev
+# → open http://localhost:1420
+```
+
+### First Time Rust Setup
+
+If you don't have Rust installed:
+
+```bash
+# macOS / Linux
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Then install Tauri CLI
+cargo install tauri-cli@^2
+
+# Verify
+cargo tauri --version
+```
+
+### Build for Distribution
+
+```bash
+# Build .dmg (macOS) / .msi (Windows) / .AppImage (Linux)
+npm run tauri build
+```
 
 ## Architecture
 
 ```
-┌─ Tauri (Rust) ──────────────────────┐
-│  Transparent window + always-on-top  │
-│  System tray                         │
-│  Node Sidecar ──────────────────── │
-│    ├── EmbeddedRelay (tinker-relay)  │
-│    ├── TinkerClient (tinker-sdk)     │
-│    └── [Future: Kangas Engine]       │
-│                                      │
-│  WebView (React) ──────────────── │
-│    ├── PetSprite (SVG animations)    │
-│    ├── BubbleOverlay                 │
-│    ├── ContextMenu (right-click)     │
-│    ├── SettingsPanel (6 tabs)        │
-│    ├── HookEngine                    │
-│    └── StatusBar                     │
-└──────────────────────────────────────┘
+tinker-desk/
+├── src-tauri/              # Tauri v2 Rust shell
+│   ├── src/main.rs         # Window setup + system tray
+│   └── tauri.conf.json     # Tauri configuration
+├── src/
+│   ├── App.tsx             # Main application shell
+│   ├── types.ts            # Complete type system
+│   ├── main.tsx            # React entry point
+│   ├── components/
+│   │   ├── PetSprite.tsx   # SVG pet rendering (14 states)
+│   │   ├── BubbleOverlay.tsx # Speech/thought bubbles
+│   │   ├── ChatPanel.tsx   # DM chat with buddy
+│   │   ├── ContextMenu.tsx # Right-click menu
+│   │   ├── SettingsPanel.tsx # Full settings UI (5 tabs)
+│   │   └── StatusBar.tsx   # Status display (browser mode)
+│   ├── hooks/
+│   │   ├── useHookEngine.ts    # Extensible event→action engine
+│   │   ├── useTinkerNetwork.ts # Tinker network integration
+│   │   ├── usePetBehavior.ts   # Autonomous behavior AI
+│   │   └── useDrag.ts         # Native drag (Tauri) / CSS drag (browser)
+│   ├── network/
+│   │   └── TinkerBridge.ts    # Browser-native WebSocket client
+│   ├── store/
+│   │   └── appStore.ts        # Zustand state + localStorage persistence
+│   ├── themes/
+│   │   └── ThemeLoader.ts     # Theme loading & management
+│   └── sounds/
+│       └── SoundEngine.ts     # Web Audio synthesized sounds
+├── scripts/
+│   └── start-relay.js         # Optional: start a tinker relay
+└── examples/
+    ├── themes/                # Theme examples + creation guide
+    └── hooks/                 # Hook template examples
 ```
 
-## Quick Start
+## How It Works
 
-### Browser Dev Mode (no Rust needed)
+### Desktop Mode (Tauri)
+
+The pet lives in a **transparent, borderless, always-on-top window**. The window IS the pet — dragging the pet moves the window via Tauri's native `startDragging()` API. All non-pet areas are click-through.
+
+### Browser Mode (Development)
+
+The pet is a CSS-positioned element inside the viewport. Useful for development and testing without Rust/Tauri installed. Run `npm run dev` and open `http://localhost:1420`.
+
+### Networking
+
+tinker-desk uses the **tinker protocol** for peer-to-peer social networking:
+
+1. **Connect** to one or more tinker relays via WebSocket
+2. **Join rooms** for global chat
+3. **Publish intents** to find buddies ("碰碰碰")
+4. **DM** matched buddies directly
+
+Each tinker-desk instance can optionally run an **embedded relay**, making it a signaling node for other peers:
 
 ```bash
-npm install
-npm run dev
-# Open http://localhost:1420
+# Start a relay on this machine
+node scripts/start-relay.js --port 3210
+
+# Other tinker-desk instances can connect to:
+# ws://your-ip:3210
 ```
 
-### Tauri Desktop App
+### Pet States
 
-```bash
-# Requires Rust toolchain
-npm install
-npm run tauri:dev
-```
+The pet has **14 visual states**, driven by the behavior engine and network events:
 
-## Settings (right-click pet → ⚙️)
+| State | Trigger |
+|-------|---------|
+| `idle` | Default — gentle bounce |
+| `walk_left` / `walk_right` | Autonomous walking (browser mode) |
+| `sit` | Resting |
+| `sleep` | Extended idle |
+| `think` | Contemplating |
+| `wave` | Greeting a new peer |
+| `excited` | Clicked or stimulated |
+| `celebrate` | Buddy found! |
+| `sad` | Buddy lost |
+| `searching` | Looking for buddy |
+| `matched` | Buddy match confirmed |
+| `chatting` | In conversation |
+| `drag` | Being dragged |
 
-| Tab | What it does |
-|-----|-------------|
-| 🎨 Theme | Upload custom sprite packs, switch themes |
-| 🪝 Hooks | Event → Action mappings, JS conditions, cooldowns |
-| 🔊 Sounds | Map events to audio files |
-| ✨ Animation | Speed, bounce, walk speed, particles |
-| 🌐 Network | Relay port, bootstrap peers, mDNS toggle |
-| 🐾 Pet | Name, personality sliders |
+### Hook Engine
 
-## Hook System
-
-Hooks connect **events** to **actions**:
+The hook engine lets you create custom behaviors:
 
 ```json
 {
-  "id": "my-hook",
-  "name": "Greet on Click",
+  "id": "greet-peer",
+  "name": "Greet New Peer",
   "enabled": true,
-  "event": "pet_clicked",
-  "condition": "Math.random() > 0.5",
+  "event": "peer_discovered",
+  "condition": "count > 0",
   "actions": [
-    { "type": "show_bubble", "payload": { "text": "Hey! 👋" } },
-    { "type": "play_sound", "payload": { "src": "sounds/pop.mp3" } }
+    { "type": "animate", "payload": { "state": "wave", "duration": 2000 } },
+    { "type": "show_bubble", "payload": { "text": "Hello! 👋", "duration": 3000 } }
   ],
-  "cooldownMs": 3000
+  "cooldownMs": 10000
 }
 ```
 
-### Events (21 types)
+**21 events** × **10 action types** = unlimited custom behaviors.
 
-**Network**: `peer_discovered` · `intent_matched` · `intent_expired` · `message_received` · `dm_received` · `agent_status_changed` · `buddy_found` · `buddy_lost`
+## Custom Themes
 
-**Local**: `pet_clicked` · `pet_double_clicked` · `pet_dragged` · `pet_dropped` · `mouse_near` · `mouse_away` · `window_focus` · `window_blur` · `idle_timeout` · `timer`
+See [`examples/themes/CREATING_THEMES.md`](examples/themes/CREATING_THEMES.md) for a guide.
 
-**Lifecycle**: `startup` · `shutdown`
+Quick version: create a `theme.json` defining sprites for all 14 states, place sprite files alongside it.
 
-### Actions (10 types)
+## Network Configuration
 
-`set_state` · `play_sound` · `show_bubble` · `show_notification` · `animate` · `move_to` · `open_url` · `send_message` · `publish_intent` · `custom`
+In **Settings → Network**:
 
-## Theme Format
+- **Auto-Start**: Connect to relay on launch
+- **Relay Port**: Port for local embedded relay
+- **Bootstrap Peers**: Known relay addresses to connect to
+- **mDNS**: Auto-discover peers on local network
 
-Create a `theme.json` with sprites for each pet state:
+## Relationship to tinker
 
-```json
-{
-  "name": "My Theme",
-  "version": "1.0.0",
-  "size": { "width": 80, "height": 80 },
-  "sprites": {
-    "idle": { "src": "sprites/idle.svg", "frames": 1 },
-    "walk_left": { "src": "sprites/walk.svg", "frames": 4, "frameDuration": 150 },
-    ...
-  }
-}
-```
+**tinker** is the P2P social protocol (SDK + Relay + CLI). It's a separate, independent project.
 
-**States**: idle · walk_left · walk_right · sit · sleep · excited · wave · think · celebrate · sad · searching · matched · chatting · drag
+**tinker-desk** is a desktop application that uses the tinker protocol to enable peer-to-peer social features for desktop pets. It includes a browser-native reimplementation of the tinker client (`TinkerBridge`).
 
-## Roadmap
+## Tech Stack
 
-- [x] v0.1 — Pet sprite + drag + behavior engine + settings panel + hook system
-- [ ] v0.2 — tinker network integration (EmbeddedRelay + TinkerClient)
-- [ ] v0.3 — "Find Buddy" 碰碰碰 (intent publish + match flow)
-- [ ] v0.4 — Custom theme loading from disk
-- [ ] v0.5 — Chat bubble (DM through tinker)
-- [ ] v1.0 — Tauri desktop build + installer
+- **Tauri v2** — lightweight native desktop shell (Rust)
+- **React 18** — UI framework
+- **Zustand** — state management
+- **Web Audio API** — synthesized sound effects
+- **tinker protocol** — P2P networking
 
-## Related
+## Version History
 
-- [tinker](https://github.com/Fozu-lzwpattern/tinker) — The underlying P2P social protocol
-- [kangas-pet](https://github.com/Fozu-lzwpattern/kangas-pet) — Digital life engine (future soul layer)
+| Version | Date | Changes |
+|---------|------|---------|
+| v1.0.0 | 2026-04-21 | Full desktop pet: Tauri shell, 14 states, hook engine, sound, themes, network, settings |
+| v0.2.0 | 2026-04-21 | TinkerBridge + useTinkerNetwork + ChatPanel + Find Buddy |
+| v0.1.0 | 2026-04-21 | Initial scaffold: PetSprite, HookEngine, BubbleOverlay, ContextMenu |
 
 ## License
 
