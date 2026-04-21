@@ -13,6 +13,8 @@ import { StatusBar } from './components/StatusBar';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ContextMenu } from './components/ContextMenu';
 import { ChatPanel } from './components/ChatPanel';
+import { GlobalChat } from './components/GlobalChat';
+import { AgentHub } from './components/AgentHub';
 import { usePetBehavior } from './hooks/usePetBehavior';
 import { useHookEngine } from './hooks/useHookEngine';
 import { useTinkerNetwork } from './hooks/useTinkerNetwork';
@@ -123,6 +125,8 @@ function App() {
       <SettingsPanel />
       <ContextMenu />
       <ChatPanel />
+      {!tauriMode && <GlobalChat />}
+      <AgentHub />
 
       {/* Global CSS animations */}
       <style>{`

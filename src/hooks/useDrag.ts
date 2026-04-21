@@ -73,6 +73,14 @@ export function useDrag() {
           } catch (err) {
             console.warn('[useDrag] startDragging failed:', err);
           }
+          // OS took over the drag from here; the browser will never fire pointerup.
+          // Reset drag state now so usePetBehavior doesn't get stuck on isDragging=true.
+          setDragging(false);
+          setPetState('idle');
+          emit('pet_dropped', {
+            x: useAppStore.getState().position.x,
+            y: useAppStore.getState().position.y,
+          });
           return;
         }
       }

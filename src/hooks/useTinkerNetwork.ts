@@ -35,6 +35,9 @@ function getOrCreateNodeId(): string {
 /** Singleton bridge ref shared across the app */
 let globalBridge: TinkerBridge | null = null;
 
+/** Timeout ID for the buddy-search (cleared when a match is found) */
+let searchTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
 export function useTinkerNetwork() {
   const settings = useAppStore((s) => s.settings);
   const setOnline = useAppStore((s) => s.setOnline);
@@ -135,6 +138,11 @@ export function useTinkerNetwork() {
           break;
 
         case 'intent_matched':
+          // Clear the search timeout — we found a buddy
+          if (searchTimeoutId) {
+            clearTimeout(searchTimeoutId);
+            searchTimeoutId = null;
+          }
           // Buddy found!
           setActiveBuddy(ev.intent.matchedNodeId ?? ev.intent.fromNodeId);
           setPetState('matched');
@@ -220,6 +228,23 @@ export function useTinkerNetwork() {
         intentId: intent.intentId,
         capability: 'buddy-match',
       });
+
+      // Clear any previous search timeout and start a new one
+      if (searchTimeoutId) {
+        clearTimeout(searchTimeoutId);
+      }
+      searchTimeoutId = setTimeout(() => {
+        searchTimeoutId = null;
+        const current = useAppStore.getState();
+        if (current.petState === 'searching') {
+          current.setPetState('idle');
+          current.addBubble({
+            text: '🔍 No buddy found this time. Try again later!',
+            type: 'thought',
+            expiresAt: Date.now() + 4000,
+          });
+        }
+      }, 30000);
     } catch (err) {
       console.warn('[findBuddy] failed:', err);
       setPetState('sad');

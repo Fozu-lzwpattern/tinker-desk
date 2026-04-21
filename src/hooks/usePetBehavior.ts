@@ -39,19 +39,31 @@ export function usePetBehavior() {
   const walkTarget = useRef<number | null>(null);
   const tauriMode = useRef(false);
 
+  // Refs for frequently-changing values — avoids rebuilding tick closure every 100ms
+  const positionRef = useRef(position);
+  const petStateRef = useRef(petState);
+  const settingsRef = useRef(settings);
+  const isDraggingRef = useRef(isDragging);
+
+  useEffect(() => { positionRef.current = position; }, [position]);
+  useEffect(() => { petStateRef.current = petState; }, [petState]);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+  useEffect(() => { isDraggingRef.current = isDragging; }, [isDragging]);
+
   useEffect(() => {
     tauriMode.current = isTauri();
   }, []);
 
   const tick = useCallback(() => {
-    if (isDragging) return;
+    if (isDraggingRef.current) return;
 
     // Don't override special states (searching, matched, chatting)
+    const currentPetState = petStateRef.current;
     const nonInterruptable: PetState[] = ['searching', 'matched', 'chatting', 'celebrate', 'drag'];
-    if (nonInterruptable.includes(petState)) return;
+    if (nonInterruptable.includes(currentPetState)) return;
 
     stateTimer.current += TICK_MS;
-    const { walkSpeed, speed } = settings.animation;
+    const { walkSpeed, speed } = settingsRef.current.animation;
     const effectiveSpeed = walkSpeed * speed;
 
     // ── Tauri mode: idle animations only ──────────────────
@@ -65,13 +77,14 @@ export function usePetBehavior() {
     }
 
     // ── Browser mode: walking + idle ──────────────────────
-    if (petState === 'walk_left' || petState === 'walk_right') {
-      const dir = petState === 'walk_left' ? -1 : 1;
-      const newX = position.x + dir * effectiveSpeed;
+    const currentPosition = positionRef.current;
+    if (currentPetState === 'walk_left' || currentPetState === 'walk_right') {
+      const dir = currentPetState === 'walk_left' ? -1 : 1;
+      const newX = currentPosition.x + dir * effectiveSpeed;
 
       const maxX = window.innerWidth - 120;
       const clampedX = Math.max(0, Math.min(maxX, newX));
-      setPosition({ x: clampedX, y: position.y });
+      setPosition({ x: clampedX, y: currentPosition.y });
 
       if (
         walkTarget.current !== null &&
@@ -93,28 +106,21 @@ export function usePetBehavior() {
     if (stateTimer.current > stateDuration / speed) {
       stateTimer.current = 0;
       const rand = Math.random();
-      const { energy, curiosity } = settings.personality;
+      const { energy, curiosity } = settingsRef.current.personality;
 
       if (rand < 0.3 * energy) {
         const dir = Math.random() > 0.5 ? 'walk_right' : 'walk_left';
         const range = window.innerWidth * 0.3 * curiosity;
         walkTarget.current =
           dir === 'walk_right'
-            ? position.x + Math.random() * range
-            : position.x - Math.random() * range;
+            ? currentPosition.x + Math.random() * range
+            : currentPosition.x - Math.random() * range;
         setPetState(dir);
       } else {
         setPetState(randomChoice(IDLE_ACTIONS));
       }
     }
-  }, [
-    isDragging,
-    petState,
-    position,
-    settings,
-    setPetState,
-    setPosition,
-  ]);
+  }, [setPetState, setPosition]); // Only stable setter functions as deps
 
   useEffect(() => {
     const interval = setInterval(tick, TICK_MS);

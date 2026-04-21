@@ -13,6 +13,7 @@
 import React, { useMemo } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useDrag } from '../hooks/useDrag';
+import { loadTheme, getSpriteUrl } from '../themes/ThemeLoader';
 import type { PetState } from '../types';
 
 /** Detect if running inside Tauri WebView */
@@ -190,6 +191,11 @@ export function PetSprite() {
             : undefined,
       };
 
+  // Theme-aware sprite rendering
+  const activeTheme = settings.activeTheme;
+  const theme = useMemo(() => loadTheme(activeTheme), [activeTheme]);
+  const spriteUrl = useMemo(() => getSpriteUrl(theme, petState), [theme, petState]);
+
   return (
     <div
       style={style}
@@ -197,7 +203,20 @@ export function PetSprite() {
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
     >
-      <DefaultPetSVG state={petState} size={size} />
+      {spriteUrl ? (
+        <img
+          src={spriteUrl}
+          alt={petState}
+          width={size}
+          height={size}
+          style={{
+            objectFit: 'contain',
+            display: 'block',
+          }}
+        />
+      ) : (
+        <DefaultPetSVG state={petState} size={size} />
+      )}
     </div>
   );
 }

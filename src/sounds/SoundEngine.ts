@@ -15,6 +15,10 @@ function getAudioContext(): AudioContext {
   if (!audioCtx) {
     audioCtx = new AudioContext();
   }
+  // Resume if suspended (Chrome autoplay policy blocks AudioContext created before user gesture)
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume(); // Fire-and-forget; playback will catch up once resumed
+  }
   return audioCtx;
 }
 

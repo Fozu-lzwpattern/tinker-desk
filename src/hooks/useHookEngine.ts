@@ -25,8 +25,16 @@ const cooldowns = new Map<string, number>();
 /** Safely evaluate a condition expression with event context */
 function evaluateCondition(
   condition: string,
-  context: Record<string, unknown>
+  context: Record<string, unknown>,
+  allowUnsafe: boolean
 ): boolean {
+  if (!allowUnsafe) {
+    console.warn(
+      '[HookEngine] Condition evaluation blocked: security.allowUnsafeHooks is false. ' +
+      'Treating condition as true. Enable allowUnsafeHooks in Settings → Security to use JS conditions.'
+    );
+    return true; // Treat as always-true so other actions still fire
+  }
   try {
     const fn = new Function(
       ...Object.keys(context),
@@ -45,13 +53,15 @@ export function useHookEngine() {
   const setPetState = useAppStore((s) => s.setPetState);
   const addBubble = useAppStore((s) => s.addBubble);
 
-  // Keep a ref to latest hooks/sounds to avoid stale closures
+  // Keep a ref to latest hooks/sounds/security to avoid stale closures
   const hooksRef = useRef<HookDefinition[]>(settings.hooks);
   const soundsRef = useRef(settings.sounds);
+  const allowUnsafeRef = useRef(settings.security?.allowUnsafeHooks ?? false);
   useEffect(() => {
     hooksRef.current = settings.hooks;
     soundsRef.current = settings.sounds;
-  }, [settings.hooks, settings.sounds]);
+    allowUnsafeRef.current = settings.security?.allowUnsafeHooks ?? false;
+  }, [settings.hooks, settings.sounds, settings.security]);
 
   /** Execute a single hook action */
   const executeAction = useCallback(
@@ -113,6 +123,13 @@ export function useHookEngine() {
 
         case 'custom':
           if (action.payload?.code) {
+            if (!allowUnsafeRef.current) {
+              console.warn(
+                '[HookEngine] Custom action blocked: security.allowUnsafeHooks is false. ' +
+                'Enable allowUnsafeHooks in Settings → Security to use custom code actions.'
+              );
+              break;
+            }
             try {
               const fn = new Function('store', `"use strict"; ${action.payload.code}`);
               fn(useAppStore.getState());
@@ -148,7 +165,7 @@ export function useHookEngine() {
         }
 
         // Evaluate condition
-        if (hook.condition && !evaluateCondition(hook.condition, context)) {
+        if (hook.condition && !evaluateCondition(hook.condition, context, allowUnsafeRef.current)) {
           continue;
         }
 

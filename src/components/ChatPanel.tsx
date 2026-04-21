@@ -5,7 +5,7 @@
  * In browser mode: follows the pet's CSS position.
  */
 
-import React, { useCallback, useRef, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useTinkerNetwork } from '../hooks/useTinkerNetwork';
 import type { BridgeMessage } from '../network/TinkerBridge';
@@ -28,10 +28,53 @@ export function ChatPanel() {
   const petName = useAppStore((s) => s.settings.petName);
   const { sendChat, bridge } = useTinkerNetwork();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Per-buddy message storage: Map<buddyNodeId, ChatMessage[]>
+  // Using useRef so the map persists across re-renders / buddy switches.
+  const messageMap = useRef<Map<string, ChatMessage[]>>(new Map());
+
+  const [, forceUpdate] = useState(0);
   const [input, setInput] = useState('');
   const [minimized, setMinimized] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Derive the message list for the currently active buddy
+  const messages: ChatMessage[] = activeBuddy
+    ? (messageMap.current.get(activeBuddy) ?? [])
+    : [];
+
+  // Helper: append a message for a given buddy and trigger re-render
+  const appendMessage = useCallback((buddyId: string, msg: ChatMessage) => {
+    const current = messageMap.current.get(buddyId) ?? [];
+    messageMap.current.set(buddyId, [...current, msg]);
+    forceUpdate((n) => n + 1);
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+    }, 50);
+  }, []);
+
+  // When activeBuddy changes, attempt to load history from relay
+  useEffect(() => {
+    if (!bridge || !activeBuddy) return;
+
+    // Only fetch history if we don't already have messages for this buddy
+    if (!messageMap.current.has(activeBuddy)) {
+      const nodeId = bridge.nodeId;
+      bridge.getDmHistory(nodeId, activeBuddy).then((history) => {
+        if (history.length === 0) return;
+        const chatMsgs: ChatMessage[] = history.map((m) => ({
+          id: m.id,
+          from: m.from === nodeId ? 'me' : 'buddy',
+          text: m.content,
+          time: m.timestamp,
+        }));
+        messageMap.current.set(activeBuddy, chatMsgs);
+        forceUpdate((n) => n + 1);
+        setTimeout(() => {
+          scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+        }, 50);
+      });
+    }
+  }, [bridge, activeBuddy]);
 
   // Listen for incoming DMs from the buddy
   useEffect(() => {
@@ -39,33 +82,31 @@ export function ChatPanel() {
 
     const unsub = bridge.on((ev) => {
       if (ev.event === 'dm' && ev.msg.from === activeBuddy) {
-        setMessages((prev) => [
-          ...prev,
-          { id: ev.msg.id, from: 'buddy', text: ev.msg.content, time: Date.now() },
-        ]);
-        setTimeout(() => {
-          scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-        }, 50);
+        appendMessage(activeBuddy, {
+          id: ev.msg.id,
+          from: 'buddy',
+          text: ev.msg.content,
+          time: Date.now(),
+        });
       }
     });
 
     return unsub;
-  }, [bridge, activeBuddy]);
+  }, [bridge, activeBuddy, appendMessage]);
 
   const handleSend = useCallback(() => {
-    if (!input.trim()) return;
+    if (!input.trim() || !activeBuddy) return;
     const msg = sendChat(input.trim());
     if (msg) {
-      setMessages((prev) => [
-        ...prev,
-        { id: msg.id, from: 'me', text: input.trim(), time: Date.now() },
-      ]);
+      appendMessage(activeBuddy, {
+        id: msg.id,
+        from: 'me',
+        text: input.trim(),
+        time: Date.now(),
+      });
       setInput('');
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-      }, 50);
     }
-  }, [input, sendChat]);
+  }, [input, sendChat, activeBuddy, appendMessage]);
 
   if (!activeBuddy) return null;
 

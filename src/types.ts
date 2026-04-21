@@ -158,6 +158,12 @@ export interface TinkerDeskSettings {
     energy: number;         // 0-1, how active/hyper
     curiosity: number;      // 0-1, how often it explores screen edges
   };
+  /** Security settings */
+  security: {
+    allowUnsafeHooks: boolean; // default false — gates new Function() usage
+  };
+  /** Integrated agents/assistants */
+  agents: AgentIntegration[];
 }
 
 export const DEFAULT_SETTINGS: TinkerDeskSettings = {
@@ -183,6 +189,10 @@ export const DEFAULT_SETTINGS: TinkerDeskSettings = {
     energy: 0.5,
     curiosity: 0.4,
   },
+  security: {
+    allowUnsafeHooks: false,
+  },
+  agents: [],
 };
 
 // ─── Store ──────────────────────────────────────────────────
@@ -215,6 +225,9 @@ export interface AppState {
   settings: TinkerDeskSettings;
   settingsOpen: boolean;
 
+  // Global chat UI
+  globalChatOpen: boolean;
+
   // Actions
   setPetState: (state: PetState) => void;
   setPosition: (pos: PetPosition) => void;
@@ -226,4 +239,56 @@ export interface AppState {
   setActiveBuddy: (buddy: string | null) => void;
   updateSettings: (partial: Partial<TinkerDeskSettings>) => void;
   toggleSettings: () => void;
+  toggleGlobalChat: () => void;
+
+  // Agent Hub
+  agentHubOpen: boolean;
+  toggleAgentHub: () => void;
+}
+
+// ─── Agent Hub ──────────────────────────────────────────────
+
+/** Status of an integrated agent */
+export type AgentStatus = 'running' | 'stopped' | 'error' | 'connecting';
+
+/** An integrated agent/assistant configuration */
+export interface AgentIntegration {
+  /** Unique ID */
+  id: string;
+  /** Display name */
+  name: string;
+  /** Agent type for icon/badge */
+  type: 'openclaw' | 'claw' | 'custom';
+  /** Description */
+  description: string;
+  /** Connection endpoint (WebSocket URL to the agent's tinker bridge or relay) */
+  endpoint: string;
+  /** API key or token (optional, for authenticated agents) */
+  apiKey?: string;
+  /** Agent capabilities (what it can do) */
+  capabilities: string[];
+  /** Current status */
+  status: AgentStatus;
+  /** Whether auto-start on launch */
+  autoStart: boolean;
+  /** Whether this agent is enabled */
+  enabled: boolean;
+  /** Tinker nodeId once connected */
+  connectedNodeId?: string;
+  /** Last error message */
+  lastError?: string;
+  /** Log entries (most recent first, max 100) */
+  logs: AgentLogEntry[];
+  /** Custom metadata */
+  meta?: Record<string, unknown>;
+  /** Created timestamp */
+  createdAt: number;
+  /** Last status change */
+  updatedAt: number;
+}
+
+export interface AgentLogEntry {
+  timestamp: number;
+  level: 'info' | 'warn' | 'error';
+  message: string;
 }

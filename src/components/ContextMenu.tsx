@@ -9,6 +9,11 @@ import { useAppStore } from '../store/appStore';
 import { useTinkerNetwork } from '../hooks/useTinkerNetwork';
 import type { PetState } from '../types';
 
+/** Detect if running inside Tauri WebView */
+function isTauri(): boolean {
+  return !!(window as any).__TAURI_INTERNALS__;
+}
+
 interface MenuPosition {
   x: number;
   y: number;
@@ -28,21 +33,29 @@ export function ContextMenu() {
   const [menu, setMenu] = useState<MenuPosition | null>(null);
   const [showStates, setShowStates] = useState(false);
   const toggleSettings = useAppStore((s) => s.toggleSettings);
+  const toggleAgentHub = useAppStore((s) => s.toggleAgentHub);
   const setPetState = useAppStore((s) => s.setPetState);
   const addBubble = useAppStore((s) => s.addBubble);
   const petName = useAppStore((s) => s.settings.petName);
   const isOnline = useAppStore((s) => s.isOnline);
   const connectedPeers = useAppStore((s) => s.connectedPeers);
+  const agentCount = useAppStore((s) => s.settings.agents.length);
 
   const { findBuddy } = useTinkerNetwork();
 
   // Listen for right-click on the pet sprite
   useEffect(() => {
     const handler = (e: MouseEvent) => {
+      const tauriMode = isTauri();
       const pos = useAppStore.getState().position;
-      const dx = e.clientX - (pos.x + 40);
-      const dy = e.clientY - (pos.y + 40);
-      if (Math.sqrt(dx * dx + dy * dy) < 60) {
+      // In Tauri mode the pet is centered in the viewport (CSS 50%/50%),
+      // so use the viewport center as the hit target instead of store coords.
+      const hitX = tauriMode ? window.innerWidth / 2 : pos.x + 40;
+      const hitY = tauriMode ? window.innerHeight / 2 : pos.y + 40;
+      const dx = e.clientX - hitX;
+      const dy = e.clientY - hitY;
+      // Slightly larger radius (80) for Tauri to account for window size variance
+      if (Math.sqrt(dx * dx + dy * dy) < (tauriMode ? 80 : 60)) {
         e.preventDefault();
         setMenu({ x: e.clientX, y: e.clientY });
         setShowStates(false);
@@ -114,6 +127,15 @@ export function ContextMenu() {
         </div>
       )}
       <Separator />
+      <MenuItem
+        icon="🤖"
+        label="Agent Hub"
+        hint={agentCount > 0 ? `${agentCount} agent${agentCount !== 1 ? 's' : ''}` : undefined}
+        onClick={() => {
+          toggleAgentHub();
+          setMenu(null);
+        }}
+      />
       <MenuItem
         icon="⚙️"
         label="Settings"

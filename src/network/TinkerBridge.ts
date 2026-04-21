@@ -29,6 +29,7 @@ export interface BridgeMessage {
   room?: string;
   content: string;
   timestamp: number;
+  senderDisplayName?: string;
 }
 
 export interface BridgeIntent {
@@ -146,7 +147,11 @@ export class TinkerBridge {
     );
     const ok = results.filter((r) => r.status === 'fulfilled').length;
     if (ok === 0) throw new Error('TinkerBridge: failed to connect to any relay');
-    this.emit({ event: 'connected' });
+    // Verify at least one WebSocket is still actually OPEN before emitting
+    // (a relay could have connected and immediately disconnected)
+    if (this.isConnected) {
+      this.emit({ event: 'connected' });
+    }
     this.updatePeerCount();
   }
 
@@ -364,6 +369,21 @@ export class TinkerBridge {
     const qs = capability ? `?capability=${encodeURIComponent(capability)}` : '';
     const data = await this.fetchHttp<{ intents: BridgeIntent[] }>(`/intents${qs}`);
     return data.intents;
+  }
+
+  /**
+   * Fetch DM history between two nodes from the relay.
+   * Returns an empty array if the relay does not support this endpoint.
+   */
+  async getDmHistory(nodeA: string, nodeB: string): Promise<BridgeMessage[]> {
+    try {
+      const data = await this.fetchHttp<{ messages: BridgeMessage[] }>(
+        `/history/dm/${nodeA}/${nodeB}`
+      );
+      return data.messages ?? [];
+    } catch {
+      return []; // Relay may not support history
+    }
   }
 
   // ─── Message handling ──────────────────────────────────────

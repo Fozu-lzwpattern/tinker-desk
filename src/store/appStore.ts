@@ -55,6 +55,12 @@ export const useAppStore = create<AppState>()((set, get) => ({
   settings: loadPersistedSettings(),
   settingsOpen: false,
 
+  // Chat UI
+  globalChatOpen: false,
+
+  // Agent Hub
+  agentHubOpen: false,
+
   // Actions
   setPetState: (petState: PetState) => set({ petState }),
 
@@ -87,7 +93,16 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
   updateSettings: (partial: Partial<TinkerDeskSettings>) => {
     set((state: AppState) => {
-      const newSettings = { ...state.settings, ...partial };
+      const prev = state.settings;
+      const newSettings: TinkerDeskSettings = {
+        ...prev,
+        ...partial,
+        // Deep merge known nested objects to prevent sibling keys from being wiped
+        animation: { ...prev.animation, ...(partial.animation ?? {}) },
+        network: { ...prev.network, ...(partial.network ?? {}) },
+        personality: { ...prev.personality, ...(partial.personality ?? {}) },
+        security: { ...prev.security, ...(partial.security ?? {}) },
+      };
       persistSettings(newSettings);
       return { settings: newSettings };
     });
@@ -95,4 +110,10 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
   toggleSettings: () =>
     set((state: AppState) => ({ settingsOpen: !state.settingsOpen })),
+
+  toggleGlobalChat: () =>
+    set((state: AppState) => ({ globalChatOpen: !state.globalChatOpen })),
+
+  toggleAgentHub: () =>
+    set((state: AppState) => ({ agentHubOpen: !state.agentHubOpen })),
 }));
