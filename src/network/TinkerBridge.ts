@@ -294,6 +294,7 @@ export class TinkerBridge {
       to: params.to,
       content: params.content,
       timestamp: Date.now(),
+      senderDisplayName: this.identity.displayName,  // P1 #5
     };
     this.markSeen(msg.id);
     this.sendAll({ type: 'message', payload: msg });
@@ -308,6 +309,7 @@ export class TinkerBridge {
       to: params.to,
       content: params.content,
       timestamp: Date.now(),
+      senderDisplayName: this.identity.displayName,  // P1 #5
     };
     this.markSeen(msg.id);
     this.sendAll({ type: 'dm', payload: msg });
@@ -384,6 +386,49 @@ export class TinkerBridge {
     } catch {
       return []; // Relay may not support history
     }
+  }
+
+  // ─── Extended HTTP API (P3 #17) ────────────────────────────
+
+  /** Fetch the social graph (nodes + edges) from the relay */
+  async getGraph(): Promise<{ nodes: unknown[]; edges: unknown[] }> {
+    return this.fetchHttp<{ nodes: unknown[]; edges: unknown[] }>('/graph');
+  }
+
+  /** Fetch a specific agent's graph neighbors */
+  async getAgentNeighbors(nodeId: string): Promise<unknown> {
+    return this.fetchHttp<unknown>(`/graph/agent/${nodeId}`);
+  }
+
+  /** List all relay instances known to this relay */
+  async getRelays(): Promise<{ relays: unknown[] }> {
+    return this.fetchHttp<{ relays: unknown[] }>('/relays');
+  }
+
+  /** List all rooms on the relay */
+  async getRooms(): Promise<{ rooms: unknown[] }> {
+    return this.fetchHttp<{ rooms: unknown[] }>('/rooms');
+  }
+
+  /** List members of a specific room */
+  async getRoomMembers(roomId: string): Promise<{ members: unknown[] }> {
+    return this.fetchHttp<{ members: unknown[] }>(`/rooms/${roomId}/members`);
+  }
+
+  /** Fetch relay health/status information */
+  async getHealth(): Promise<Record<string, unknown>> {
+    return this.fetchHttp<Record<string, unknown>>('/health');
+  }
+
+  /** Fetch reputation data; pass a nodeId to get reputation for a specific node */
+  async getReputation(nodeId?: string): Promise<unknown> {
+    const path = nodeId ? `/reputation/${nodeId}` : '/reputation';
+    return this.fetchHttp<unknown>(path);
+  }
+
+  /** List all channels on the relay */
+  async getChannels(): Promise<{ channels: unknown[] }> {
+    return this.fetchHttp<{ channels: unknown[] }>('/channels');
   }
 
   // ─── Message handling ──────────────────────────────────────

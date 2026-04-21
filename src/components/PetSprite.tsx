@@ -10,7 +10,7 @@
  * Custom themes will load sprites from the theme directory.
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useDrag } from '../hooks/useDrag';
 import { loadTheme, getSpriteUrl } from '../themes/ThemeLoader';
@@ -156,6 +156,59 @@ export function PetSprite() {
   const position = useAppStore((s) => s.position);
   const settings = useAppStore((s) => s.settings);
   const { handlePointerDown, handlePointerMove, handlePointerUp } = useDrag();
+
+  // P2 #13: Mouse proximity detection
+  const isNearRef = useRef(false);
+  const lastMouseNearTime = useRef(0);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const tauriMode = !!(window as any).__TAURI_INTERNALS__;
+      // Determine pet center
+      let petCenterX: number;
+      let petCenterY: number;
+      const petSize = 120;
+
+      if (tauriMode) {
+        // In Tauri mode pet is at center of window
+        petCenterX = window.innerWidth / 2;
+        petCenterY = window.innerHeight / 2;
+      } else {
+        // In browser mode, get current position from store
+        const pos = useAppStore.getState().position;
+        petCenterX = pos.x + petSize / 2;
+        petCenterY = pos.y + petSize / 2;
+      }
+
+      const dx = e.clientX - petCenterX;
+      const dy = e.clientY - petCenterY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < 100) {
+        // Mouse is near
+        const now = Date.now();
+        if (!isNearRef.current) {
+          isNearRef.current = true;
+        }
+        // Throttle: dispatch mouse_near at most once per 2s
+        if (now - lastMouseNearTime.current > 2000) {
+          lastMouseNearTime.current = now;
+          window.dispatchEvent(new CustomEvent('tinker-hook', {
+            detail: { event: 'mouse_near', distance },
+          }));
+        }
+      } else if (distance > 150 && isNearRef.current) {
+        // Mouse moved away
+        isNearRef.current = false;
+        window.dispatchEvent(new CustomEvent('tinker-hook', {
+          detail: { event: 'mouse_away', distance },
+        }));
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []); // position not in deps — we read from store directly to avoid re-registering
 
   const size = 120; // Bigger size for desktop pet
   const tauriMode = isTauri();

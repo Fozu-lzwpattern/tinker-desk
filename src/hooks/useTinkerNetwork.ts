@@ -45,7 +45,10 @@ export function useTinkerNetwork() {
   const setActiveBuddy = useAppStore((s) => s.setActiveBuddy);
   const setPetState = useAppStore((s) => s.setPetState);
   const addBubble = useAppStore((s) => s.addBubble);
+  const incrementUnreadDm = useAppStore((s) => s.incrementUnreadDm);
+  const setConnectionState = useAppStore((s) => s.setConnectionState);
 
+  // Track if this hook instance manages the bridge lifecycle
   // Track if this hook instance manages the bridge lifecycle
   const isOwner = useRef(false);
 
@@ -94,10 +97,18 @@ export function useTinkerNetwork() {
       switch (ev.event) {
         case 'connected':
           setOnline(true);
+          setConnectionState('connected');
           break;
 
         case 'disconnected':
-          if (!bridge.isConnected) setOnline(false);
+          if (!bridge.isConnected) {
+            setOnline(false);
+            setConnectionState('disconnected');
+          }
+          break;
+
+        case 'reconnecting':
+          setConnectionState('reconnecting');
           break;
 
         case 'peer_count':
@@ -118,6 +129,8 @@ export function useTinkerNetwork() {
             from: ev.msg.from,
             content: ev.msg.content,
           });
+          // Increment unread count (P1 #6)
+          incrementUnreadDm();
           // Show bubble for incoming DMs
           addBubble({
             text: `📩 ${ev.msg.content.slice(0, 50)}`,
@@ -228,6 +241,23 @@ export function useTinkerNetwork() {
         intentId: intent.intentId,
         capability: 'buddy-match',
       });
+
+      // P1 #4: Check for existing buddy-match intents and auto-match
+      try {
+        const existingIntents = await globalBridge.getIntents('buddy-match');
+        const myNodeId = globalBridge.nodeId;
+        const peerIntent = existingIntents.find(
+          (i) => i.fromNodeId !== myNodeId && i.intentId !== intent.intentId
+        );
+        if (peerIntent) {
+          // Another peer is looking for a buddy — match them!
+          await globalBridge.matchIntent(peerIntent.intentId, myNodeId);
+          // The relay will broadcast intent_matched to both parties via WS
+        }
+      } catch (matchErr) {
+        // Non-fatal: intent list or match failed, we'll still wait for WS events
+        console.warn('[findBuddy] intent matching failed:', matchErr);
+      }
 
       // Clear any previous search timeout and start a new one
       if (searchTimeoutId) {

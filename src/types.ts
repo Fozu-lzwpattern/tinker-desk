@@ -228,6 +228,15 @@ export interface AppState {
   // Global chat UI
   globalChatOpen: boolean;
 
+  // Unread DM count (P1 #6)
+  unreadDmCount: number;
+  incrementUnreadDm: () => void;
+  clearUnreadDm: () => void;
+
+  // Connection state (P1 #7)
+  connectionState: 'connected' | 'disconnected' | 'reconnecting';
+  setConnectionState: (state: 'connected' | 'disconnected' | 'reconnecting') => void;
+
   // Actions
   setPetState: (state: PetState) => void;
   setPosition: (pos: PetPosition) => void;
@@ -292,3 +301,63 @@ export interface AgentLogEntry {
   level: 'info' | 'warn' | 'error';
   message: string;
 }
+
+// ─── Agent Manifest (P3 #14) ────────────────────────────────
+
+/** Agent self-description protocol */
+export interface AgentManifest {
+  /** Unique agent identifier */
+  agentId: string;
+  /** Human-readable name */
+  name: string;
+  /** Version string */
+  version: string;
+  /** What this agent does */
+  description: string;
+  /** Supported capabilities */
+  capabilities: string[];
+  /** Required permissions */
+  permissions: AgentPermission[];
+  /** Communication protocol version */
+  protocolVersion: string;
+  /** Supported message types */
+  supportedMessageTypes: string[];
+  /** Agent metadata */
+  meta?: Record<string, unknown>;
+}
+
+export type AgentPermission =
+  | 'chat'    // Can send/receive chat messages
+  | 'dm'      // Can send/receive direct messages
+  | 'intent'  // Can publish/match intents
+  | 'room'    // Can join/leave rooms
+  | 'profile' // Can read/write profiles
+  | 'graph'   // Can query social graph
+  | 'admin';  // Administrative actions
+
+// ─── Structured Message Types (P3 #15) ──────────────────────
+
+/** Structured message envelope for Agent-to-Agent communication */
+export interface StructuredMessage {
+  /** Message format version */
+  version: '1.0';
+  /** Message type discriminator */
+  messageType: StructuredMessageType;
+  /** Sender agent manifest (optional, sent on first contact) */
+  manifest?: AgentManifest;
+  /** Actual payload */
+  payload: Record<string, unknown>;
+  /** Correlation ID for request/response patterns */
+  correlationId?: string;
+  /** Reply-to message ID */
+  replyTo?: string;
+}
+
+export type StructuredMessageType =
+  | 'text'              // Plain text chat
+  | 'action_request'    // Request agent to perform action
+  | 'action_response'   // Response to action request
+  | 'intent_broadcast'  // Intent announcement
+  | 'manifest_exchange' // Agent introduction
+  | 'heartbeat'         // Keep-alive
+  | 'error';            // Error notification

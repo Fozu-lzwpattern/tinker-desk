@@ -14,6 +14,9 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useAppStore } from '../store/appStore';
 import type { AgentIntegration, AgentLogEntry, AgentStatus } from '../types';
 
+// ─── Module-level WebSocket registry ─────────────────────────
+const agentSockets = new Map<string, WebSocket>();
+
 // ─── Helpers ──────────────────────────────────────────────────
 
 function generateId(): string {
@@ -543,43 +546,120 @@ export function AgentHub() {
 
   const handleToggle = useCallback(
     (id: string) => {
-      const updated = agents.map((a) => {
-        if (a.id !== id) return a;
-        const newStatus: AgentStatus = a.status === 'running' ? 'stopped' : 'connecting';
-        const log: AgentLogEntry = {
+      const agent = agents.find((a) => a.id === id);
+      if (!agent) return;
+
+      if (agent.status === 'running' || agent.status === 'connecting') {
+        // ── Stop: close existing socket ──────────────────────────
+        const ws = agentSockets.get(id);
+        if (ws) {
+          ws.close();
+          agentSockets.delete(id);
+        }
+        const stopLog: AgentLogEntry = {
           timestamp: Date.now(),
           level: 'info',
-          message: newStatus === 'stopped' ? 'Agent stopped by user' : 'Connecting…',
+          message: 'Agent stopped by user',
         };
-        const newAgent = {
-          ...a,
-          status: newStatus,
-          updatedAt: Date.now(),
-          logs: [log, ...a.logs].slice(0, MAX_LOGS),
+        const updated = agents.map((a) =>
+          a.id === id
+            ? { ...a, status: 'stopped' as AgentStatus, updatedAt: Date.now(), logs: [stopLog, ...a.logs].slice(0, MAX_LOGS) }
+            : a
+        );
+        setAgents(updated);
+      } else {
+        // ── Start: open WebSocket to relay ───────────────────────
+        const connectLog: AgentLogEntry = {
+          timestamp: Date.now(),
+          level: 'info',
+          message: `Connecting to ${agent.endpoint || 'ws://localhost:3210'}…`,
         };
-        // Simulate connection success after 1.5s
-        if (newStatus === 'connecting') {
-          setTimeout(() => {
-            const current = useAppStore.getState().settings.agents;
-            const idx = current.findIndex((x) => x.id === id);
-            if (idx >= 0 && current[idx].status === 'connecting') {
-              const arr = [...current];
-              arr[idx] = {
-                ...arr[idx],
-                status: 'running',
-                updatedAt: Date.now(),
-                logs: [
-                  { timestamp: Date.now(), level: 'info' as const, message: 'Connected to relay ✓' },
-                  ...arr[idx].logs,
-                ].slice(0, MAX_LOGS),
-              };
-              updateSettings({ agents: arr });
-            }
-          }, 1500);
-        }
-        return newAgent;
-      });
-      setAgents(updated);
+        // Set status → connecting immediately
+        const connectingAgents = agents.map((a) =>
+          a.id === id
+            ? { ...a, status: 'connecting' as AgentStatus, updatedAt: Date.now(), lastError: undefined, logs: [connectLog, ...a.logs].slice(0, MAX_LOGS) }
+            : a
+        );
+        setAgents(connectingAgents);
+
+        const endpoint = agent.endpoint || 'ws://localhost:3210';
+        const ws = new WebSocket(endpoint);
+        agentSockets.set(id, ws);
+
+        ws.addEventListener('open', () => {
+          // Send hello message
+          ws.send(JSON.stringify({
+            type: 'hello',
+            nodeId: agent.id,
+            displayName: agent.name,
+            role: 'agent',
+            capabilities: agent.capabilities,
+          }));
+
+          const openLog: AgentLogEntry = {
+            timestamp: Date.now(),
+            level: 'info',
+            message: `Connected to relay ✓ (${endpoint})`,
+          };
+          const current = useAppStore.getState().settings.agents;
+          const idx = current.findIndex((x) => x.id === id);
+          if (idx >= 0) {
+            const arr = [...current];
+            arr[idx] = {
+              ...arr[idx],
+              status: 'running',
+              updatedAt: Date.now(),
+              lastError: undefined,
+              logs: [openLog, ...arr[idx].logs].slice(0, MAX_LOGS),
+            };
+            updateSettings({ agents: arr });
+          }
+        });
+
+        ws.addEventListener('close', (ev) => {
+          agentSockets.delete(id);
+          const closeLog: AgentLogEntry = {
+            timestamp: Date.now(),
+            level: 'warn',
+            message: `Connection closed${ev.reason ? `: ${ev.reason}` : ''} (code ${ev.code})`,
+          };
+          const current = useAppStore.getState().settings.agents;
+          const idx = current.findIndex((x) => x.id === id);
+          if (idx >= 0 && current[idx].status !== 'stopped') {
+            const arr = [...current];
+            arr[idx] = {
+              ...arr[idx],
+              status: 'error',
+              updatedAt: Date.now(),
+              lastError: `Connection closed (code ${ev.code})`,
+              logs: [closeLog, ...arr[idx].logs].slice(0, MAX_LOGS),
+            };
+            updateSettings({ agents: arr });
+          }
+        });
+
+        ws.addEventListener('error', () => {
+          agentSockets.delete(id);
+          const errLog: AgentLogEntry = {
+            timestamp: Date.now(),
+            level: 'error',
+            message: `WebSocket error — could not connect to ${endpoint}`,
+          };
+          const current = useAppStore.getState().settings.agents;
+          const idx = current.findIndex((x) => x.id === id);
+          if (idx >= 0) {
+            const arr = [...current];
+            arr[idx] = {
+              ...arr[idx],
+              status: 'error',
+              updatedAt: Date.now(),
+              lastError: `Failed to connect to ${endpoint}`,
+              logs: [errLog, ...arr[idx].logs].slice(0, MAX_LOGS),
+            };
+            updateSettings({ agents: arr });
+          }
+        });
+      }
     },
     [agents, setAgents, updateSettings]
   );

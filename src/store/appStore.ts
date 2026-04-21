@@ -58,6 +58,12 @@ export const useAppStore = create<AppState>()((set, get) => ({
   // Chat UI
   globalChatOpen: false,
 
+  // Unread DM count (P1 #6)
+  unreadDmCount: 0,
+
+  // Connection state (P1 #7)
+  connectionState: 'disconnected' as const,
+
   // Agent Hub
   agentHubOpen: false,
 
@@ -113,6 +119,14 @@ export const useAppStore = create<AppState>()((set, get) => ({
 
   toggleGlobalChat: () =>
     set((state: AppState) => ({ globalChatOpen: !state.globalChatOpen })),
+
+  incrementUnreadDm: () =>
+    set((state: AppState) => ({ unreadDmCount: state.unreadDmCount + 1 })),
+
+  clearUnreadDm: () => set({ unreadDmCount: 0 }),
+
+  setConnectionState: (connectionState: 'connected' | 'disconnected' | 'reconnecting') =>
+    set({ connectionState }),
 
   toggleAgentHub: () =>
     set((state: AppState) => ({ agentHubOpen: !state.agentHubOpen })),

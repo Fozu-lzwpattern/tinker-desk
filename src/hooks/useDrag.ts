@@ -26,6 +26,9 @@ export function useDrag() {
   const offset = useRef({ x: 0, y: 0 });
   const dragStartPos = useRef({ x: 0, y: 0 });
   const didMove = useRef(false);
+  // P2 #11: double-click detection
+  const lastClickTime = useRef<number>(0);
+  const lastClickPos = useRef({ x: 0, y: 0 });
 
   const handlePointerDown = useCallback(
     async (e: React.PointerEvent) => {
@@ -112,6 +115,26 @@ export function useDrag() {
           x: e.clientX,
           y: e.clientY,
         });
+
+        // P2 #11: Double-click detection
+        const now = Date.now();
+        const timeDiff = now - lastClickTime.current;
+        const clickDx = e.clientX - lastClickPos.current.x;
+        const clickDy = e.clientY - lastClickPos.current.y;
+        const clickDist = Math.sqrt(clickDx * clickDx + clickDy * clickDy);
+
+        if (timeDiff < 300 && clickDist < 20) {
+          // Double click!
+          useAppStore.getState().setPetState('excited');
+          window.dispatchEvent(new CustomEvent('tinker-hook', {
+            detail: { event: 'pet_double_clicked' },
+          }));
+          // Reset so triple-click doesn't double-fire
+          lastClickTime.current = 0;
+        } else {
+          lastClickTime.current = now;
+          lastClickPos.current = { x: e.clientX, y: e.clientY };
+        }
       } else {
         emit('pet_dropped', {
           x: useAppStore.getState().position.x,

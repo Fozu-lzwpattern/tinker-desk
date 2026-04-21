@@ -27,6 +27,8 @@ function randomChoice<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+const IDLE_TIMEOUT_MS = 60_000; // 60 seconds of no interaction
+
 export function usePetBehavior() {
   const petState = useAppStore((s) => s.petState);
   const position = useAppStore((s) => s.position);
@@ -38,6 +40,10 @@ export function usePetBehavior() {
   const stateTimer = useRef(0);
   const walkTarget = useRef<number | null>(null);
   const tauriMode = useRef(false);
+
+  // P2 #12: idle timeout tracking
+  const lastInteractionTime = useRef<number>(Date.now());
+  const idleFired = useRef(false);
 
   // Refs for frequently-changing values — avoids rebuilding tick closure every 100ms
   const positionRef = useRef(position);
@@ -54,13 +60,50 @@ export function usePetBehavior() {
     tauriMode.current = isTauri();
   }, []);
 
+  // P2 #12: Track user interactions to reset idle timer
+  useEffect(() => {
+    const resetIdle = () => {
+      lastInteractionTime.current = Date.now();
+      idleFired.current = false;
+    };
+    // Listen for tinker-hook events (pet_clicked, pet_double_clicked) and direct pointer events
+    window.addEventListener('pointerdown', resetIdle);
+    window.addEventListener('keydown', resetIdle);
+    const hookListener = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { event?: string };
+      if (detail?.event === 'pet_clicked' || detail?.event === 'pet_double_clicked') {
+        resetIdle();
+      }
+    };
+    window.addEventListener('tinker-hook', hookListener);
+    return () => {
+      window.removeEventListener('pointerdown', resetIdle);
+      window.removeEventListener('keydown', resetIdle);
+      window.removeEventListener('tinker-hook', hookListener);
+    };
+  }, []);
+
   const tick = useCallback(() => {
-    if (isDraggingRef.current) return;
+    if (isDraggingRef.current) {
+      // Dragging counts as interaction
+      lastInteractionTime.current = Date.now();
+      idleFired.current = false;
+      return;
+    }
 
     // Don't override special states (searching, matched, chatting)
     const currentPetState = petStateRef.current;
     const nonInterruptable: PetState[] = ['searching', 'matched', 'chatting', 'celebrate', 'drag'];
     if (nonInterruptable.includes(currentPetState)) return;
+
+    // P2 #12: Check idle timeout
+    const timeSinceLastInteraction = Date.now() - lastInteractionTime.current;
+    if (timeSinceLastInteraction >= IDLE_TIMEOUT_MS && !idleFired.current) {
+      idleFired.current = true;
+      window.dispatchEvent(new CustomEvent('tinker-hook', {
+        detail: { event: 'idle_timeout' },
+      }));
+    }
 
     stateTimer.current += TICK_MS;
     const { walkSpeed, speed } = settingsRef.current.animation;

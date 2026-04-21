@@ -9,6 +9,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "version": "0.1.0",
     "identifier": "com.tinker-desk.app",
     "icon": [
       "icons/32x32.png",
