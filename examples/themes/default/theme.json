@@ -1,0 +1,29 @@
+{
+  "name": "Default Tinker",
+  "version": "1.0.0",
+  "author": "tinker-desk",
+  "description": "The default green blob companion with antenna signal",
+  "size": { "width": 80, "height": 80 },
+  "hitbox": { "x": 12, "y": 24, "width": 56, "height": 48 },
+  "eyeTracking": {
+    "enabled": true,
+    "leftEye": { "cx": 32, "cy": 44, "radius": 2 },
+    "rightEye": { "cx": 48, "cy": 44, "radius": 2 }
+  },
+  "sprites": {
+    "idle": { "src": "sprites/idle.svg", "frames": 1, "loop": true },
+    "walk_left": { "src": "sprites/walk.svg", "frames": 4, "frameDuration": 150, "loop": true },
+    "walk_right": { "src": "sprites/walk.svg", "frames": 4, "frameDuration": 150, "loop": true },
+    "sit": { "src": "sprites/sit.svg", "frames": 1, "loop": true },
+    "sleep": { "src": "sprites/sleep.svg", "frames": 2, "frameDuration": 1000, "loop": true },
+    "excited": { "src": "sprites/excited.svg", "frames": 3, "frameDuration": 200, "loop": true },
+    "wave": { "src": "sprites/wave.svg", "frames": 4, "frameDuration": 250, "loop": false },
+    "think": { "src": "sprites/think.svg", "frames": 1, "loop": true },
+    "celebrate": { "src": "sprites/celebrate.svg", "frames": 6, "frameDuration": 150, "loop": false },
+    "sad": { "src": "sprites/sad.svg", "frames": 1, "loop": true },
+    "searching": { "src": "sprites/searching.svg", "frames": 3, "frameDuration": 500, "loop": true },
+    "matched": { "src": "sprites/matched.svg", "frames": 4, "frameDuration": 200, "loop": false },
+    "chatting": { "src": "sprites/chatting.svg", "frames": 2, "frameDuration": 400, "loop": true },
+    "drag": { "src": "sprites/drag.svg", "frames": 1, "loop": true }
+  }
+}

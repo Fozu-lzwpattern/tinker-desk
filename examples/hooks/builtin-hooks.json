@@ -1,0 +1,66 @@
+[
+  {
+    "id": "builtin-greet-on-click",
+    "name": "Greet on Click",
+    "description": "Pet waves and says hello when clicked",
+    "enabled": true,
+    "event": "pet_clicked",
+    "actions": [
+      { "type": "animate", "payload": { "state": "wave", "duration": 2000 } },
+      { "type": "show_bubble", "payload": { "text": "Hi there! 👋", "duration": 2500 } },
+      { "type": "play_sound", "payload": { "src": "sounds/pop.mp3", "volume": 0.4 } }
+    ],
+    "cooldownMs": 5000
+  },
+  {
+    "id": "builtin-buddy-found",
+    "name": "Buddy Found!",
+    "description": "Celebrate when a buddy match is found on the tinker network",
+    "enabled": true,
+    "event": "buddy_found",
+    "actions": [
+      { "type": "set_state", "payload": { "state": "matched" } },
+      { "type": "show_bubble", "payload": { "text": "🎉 Found a buddy!", "type": "notification", "duration": 4000 } },
+      { "type": "play_sound", "payload": { "src": "sounds/match.mp3", "volume": 0.6 } },
+      { "type": "show_notification", "payload": { "title": "tinker-desk", "body": "A new buddy wants to connect!" } }
+    ],
+    "cooldownMs": 10000
+  },
+  {
+    "id": "builtin-peer-discovered",
+    "name": "New Peer Noticed",
+    "description": "Pet looks curious when a new peer appears on the network",
+    "enabled": true,
+    "event": "peer_discovered",
+    "actions": [
+      { "type": "animate", "payload": { "state": "think", "duration": 1500 } },
+      { "type": "show_bubble", "payload": { "text": "💭 Someone new...", "type": "thought", "duration": 2000 } }
+    ],
+    "cooldownMs": 30000
+  },
+  {
+    "id": "builtin-idle-sleep",
+    "name": "Auto Sleep",
+    "description": "Pet falls asleep after extended idle",
+    "enabled": true,
+    "event": "idle_timeout",
+    "actions": [
+      { "type": "set_state", "payload": { "state": "sleep" } },
+      { "type": "show_bubble", "payload": { "text": "💤", "type": "thought", "duration": 3000 } }
+    ],
+    "cooldownMs": 60000
+  },
+  {
+    "id": "builtin-dm-notification",
+    "name": "DM Received",
+    "description": "Alert when a direct message comes through tinker",
+    "enabled": true,
+    "event": "dm_received",
+    "actions": [
+      { "type": "animate", "payload": { "state": "excited", "duration": 1500 } },
+      { "type": "show_bubble", "payload": { "text": "📩 New message!", "type": "notification", "duration": 3000 } },
+      { "type": "play_sound", "payload": { "src": "sounds/notification.mp3", "volume": 0.5 } }
+    ],
+    "cooldownMs": 5000
+  }
+]
