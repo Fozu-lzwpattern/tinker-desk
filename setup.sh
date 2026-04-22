@@ -104,6 +104,12 @@ install_deps() {
   fi
   info "  Frontend built"
 
+  # ── Step 4: Generate icons (if missing) ──
+  if [ ! -f "src-tauri/icons/32x32.png" ]; then
+    info "  Generating app icons..."
+    node scripts/generate-icons.js 2>&1 | tail -3
+  fi
+
   info "All dependencies ready ✅"
 }
 
