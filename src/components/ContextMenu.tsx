@@ -139,9 +139,35 @@ export function ContextMenu() {
       <MenuItem
         icon="⚙️"
         label="Settings"
-        onClick={() => {
-          toggleSettings();
+        onClick={async () => {
           setMenu(null);
+          if (isTauri()) {
+            // Open (or focus) the dedicated settings window
+            try {
+              const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+              const existing = await WebviewWindow.getByLabel('settings');
+              if (existing) {
+                await existing.show();
+                await existing.setFocus();
+              } else {
+                new WebviewWindow('settings', {
+                  url: 'index.html?settings=1',
+                  title: 'tinker-desk Settings',
+                  width: 820,
+                  height: 620,
+                  resizable: true,
+                  decorations: true,
+                  transparent: false,
+                  alwaysOnTop: false,
+                });
+              }
+            } catch (err) {
+              console.warn('[ContextMenu] Failed to open settings window:', err);
+              toggleSettings();
+            }
+          } else {
+            toggleSettings();
+          }
         }}
       />
       <MenuItem

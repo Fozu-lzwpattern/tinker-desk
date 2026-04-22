@@ -11,6 +11,7 @@ import { PetSprite } from './components/PetSprite';
 import { BubbleOverlay } from './components/BubbleOverlay';
 import { StatusBar } from './components/StatusBar';
 import { SettingsPanel } from './components/SettingsPanel';
+import { SettingsPage } from './components/SettingsPage';
 import { ContextMenu } from './components/ContextMenu';
 import { ChatPanel } from './components/ChatPanel';
 import { GlobalChat } from './components/GlobalChat';
@@ -25,7 +26,24 @@ function isTauri(): boolean {
   return !!(window as any).__TAURI_INTERNALS__;
 }
 
+/**
+ * If the URL contains `?settings=1`, render the settings page directly.
+ * This is used by the Tauri second webview window (label: "settings").
+ */
+function isSettingsWindow(): boolean {
+  return window.location.search.includes('settings=1');
+}
+
 function App() {
+  // ── Settings window mode (Tauri second window or direct URL) ──
+  if (isSettingsWindow()) {
+    return (
+      <div style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+        <SettingsPage />
+      </div>
+    );
+  }
+
   // Start autonomous behavior engine
   usePetBehavior();
 
@@ -82,7 +100,6 @@ function App() {
     if (!isTauri()) return;
 
     let unlisten1: (() => void) | undefined;
-    let unlisten2: (() => void) | undefined;
 
     (async () => {
       try {
@@ -90,9 +107,8 @@ function App() {
         unlisten1 = await listen('tray-find-buddy', () => {
           findBuddy();
         });
-        unlisten2 = await listen('tray-settings', () => {
-          toggleSettings();
-        });
+        // tray-settings is no longer used: the tray handler opens a dedicated
+        // webview window directly from main.rs instead of emitting an event.
       } catch (err) {
         console.warn('[App] Failed to listen for tray events:', err);
       }
@@ -100,9 +116,8 @@ function App() {
 
     return () => {
       unlisten1?.();
-      unlisten2?.();
     };
-  }, [findBuddy, toggleSettings]);
+  }, [findBuddy]);
 
   // In Tauri mode, pet position is relative to window (center);
   // the entire window moves when dragged. In browser mode, pet moves within viewport.

@@ -60,8 +60,25 @@ fn main() {
                             }
                         }
                         "settings" => {
-                            if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.emit("tray-settings", ());
+                            // If the settings window already exists, focus it
+                            if let Some(win) = app.get_webview_window("settings") {
+                                let _ = win.show();
+                                let _ = win.set_focus();
+                            } else {
+                                // Create a new dedicated settings window
+                                let url = tauri::WebviewUrl::App("index.html?settings=1".into());
+                                let _ = tauri::WebviewWindowBuilder::new(
+                                    app,
+                                    "settings",
+                                    url,
+                                )
+                                .title("tinker-desk Settings")
+                                .inner_size(820.0, 620.0)
+                                .resizable(true)
+                                .decorations(true)
+                                .transparent(false)
+                                .always_on_top(false)
+                                .build();
                             }
                         }
                         "quit" => {
