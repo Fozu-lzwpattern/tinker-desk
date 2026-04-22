@@ -37,7 +37,7 @@ async function main() {
   const shutdown = async (signal) => {
     console.log(`\n⏹  Received ${signal} — shutting down relay…`);
     try {
-      await relay.close();
+      await relay.stop();
       console.log('✓ Relay stopped cleanly.');
     } catch (err) {
       console.error('Error during shutdown:', err);
