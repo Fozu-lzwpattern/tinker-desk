@@ -15,6 +15,7 @@ import { useAppStore } from '../store/appStore';
 import { getInstalledThemes } from '../themes/ThemeLoader';
 import type { HookDefinition, HookEvent, HookActionType } from '../types';
 import { SpriteStudioTab } from './SpriteStudioTab';
+import { APP_VERSION } from '../version';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -1260,7 +1261,7 @@ function AboutTab() {
               marginBottom: 24,
             }}
           >
-            v0.1.0
+            v{APP_VERSION}
           </div>
 
           <div style={{ fontSize: 14, color: '#475569', lineHeight: 1.9 }}>

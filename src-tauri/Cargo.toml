@@ -1,6 +1,6 @@
 [package]
 name = "tinker-desk"
-version = "1.0.0"
+version = "0.1.0"
 description = "Desktop companion pet powered by tinker social network"
 authors = ["Fozu-lzwpattern"]
 edition = "2021"

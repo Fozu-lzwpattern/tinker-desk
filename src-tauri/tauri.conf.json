@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
-  "identifier": "com.tinker-desk.app",
+  "identifier": "com.tinkerdesk.app",
   "version": "0.1.0",
   "build": {
     "beforeDevCommand": "npm run dev",
