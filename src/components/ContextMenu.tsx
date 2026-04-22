@@ -142,28 +142,41 @@ export function ContextMenu() {
         onClick={async () => {
           setMenu(null);
           if (isTauri()) {
-            // Open (or focus) the dedicated settings window
+            // Open (or focus) the dedicated settings window via Tauri v2 API
             try {
-              const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-              const existing = await WebviewWindow.getByLabel('settings');
-              if (existing) {
-                await existing.show();
-                await existing.setFocus();
+              const tauriMod = (window as any).__TAURI_INTERNALS__;
+              if (tauriMod) {
+                // Use core invoke to ask Rust backend to open/focus the settings window
+                // This mirrors the tray "settings" handler in main.rs
+                const { invoke } = await import('@tauri-apps/api/core');
+                await invoke('open_settings_window');
               } else {
-                new WebviewWindow('settings', {
-                  url: 'index.html?settings=1',
-                  title: 'tinker-desk Settings',
-                  width: 820,
-                  height: 620,
-                  resizable: true,
-                  decorations: true,
-                  transparent: false,
-                  alwaysOnTop: false,
-                });
+                toggleSettings();
               }
             } catch (err) {
-              console.warn('[ContextMenu] Failed to open settings window:', err);
-              toggleSettings();
+              console.warn('[ContextMenu] invoke failed, trying WebviewWindow API:', err);
+              try {
+                const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+                const existing = await WebviewWindow.getByLabel('settings');
+                if (existing) {
+                  await existing.show();
+                  await existing.setFocus();
+                } else {
+                  new WebviewWindow('settings', {
+                    url: 'index.html?settings=1',
+                    title: 'tinker-desk Settings',
+                    width: 820,
+                    height: 620,
+                    resizable: true,
+                    decorations: true,
+                    transparent: false,
+                    alwaysOnTop: false,
+                  });
+                }
+              } catch (err2) {
+                console.warn('[ContextMenu] WebviewWindow also failed:', err2);
+                toggleSettings();
+              }
             }
           } else {
             toggleSettings();

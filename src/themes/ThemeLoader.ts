@@ -36,53 +36,9 @@ export const DEFAULT_THEME: ThemeManifest = {
   size: { width: 120, height: 120 },
 };
 
-/** Kanga theme — cute baby kangaroo */
-export const KANGA_THEME: ThemeManifest = {
-  name: 'Kanga',
-  version: '1.0.0',
-  author: 'tinker-desk',
-  description: 'A cute baby kangaroo — warm brown & orange, big ears, bouncy tail',
-  sprites: builtinSprites(),
-  size: { width: 120, height: 120 },
-};
-
-/** Pixel theme — 8-bit retro Game Boy style */
-export const PIXEL_THEME: ThemeManifest = {
-  name: 'Pixel',
-  version: '1.0.0',
-  author: 'tinker-desk',
-  description: '8-bit retro pixel art creature — classic Game Boy green palette',
-  sprites: builtinSprites(),
-  size: { width: 120, height: 120 },
-};
-
-/** Neko theme — classic Japanese desktop cat */
-export const NEKO_THEME: ThemeManifest = {
-  name: 'Neko',
-  version: '1.0.0',
-  author: 'tinker-desk',
-  description: 'Classic Japanese desktop cat — orange calico with whiskers and swishing tail',
-  sprites: builtinSprites(),
-  size: { width: 120, height: 120 },
-};
-
-/** Bot theme — cyberpunk robot/droid */
-export const BOT_THEME: ThemeManifest = {
-  name: 'Bot',
-  version: '1.0.0',
-  author: 'tinker-desk',
-  description: 'Cyberpunk robot — metallic blue/silver with glowing LED panel',
-  sprites: builtinSprites(),
-  size: { width: 120, height: 120 },
-};
-
 /** All built-in themes keyed by ID */
 const BUILTIN_THEMES: Record<string, ThemeManifest> = {
   default: DEFAULT_THEME,
-  kanga: KANGA_THEME,
-  pixel: PIXEL_THEME,
-  neko: NEKO_THEME,
-  bot: BOT_THEME,
 };
 
 /** Cached loaded themes */
@@ -92,10 +48,6 @@ const themeCache = new Map<string, ThemeManifest>();
 export function getInstalledThemes(): Array<{ id: string; name: string; description?: string }> {
   const themes: Array<{ id: string; name: string; description?: string }> = [
     { id: 'default', name: 'Default Tinker', description: 'The original green blob creature' },
-    { id: 'kanga',   name: 'Kanga 🦘',       description: 'Cute baby kangaroo — warm brown & orange' },
-    { id: 'pixel',   name: 'Pixel 👾',        description: '8-bit retro Game Boy style creature' },
-    { id: 'neko',    name: 'Neko 🐱',         description: 'Classic Japanese desktop cat' },
-    { id: 'bot',     name: 'Bot 🤖',          description: 'Cyberpunk robot with glowing LED panel' },
   ];
 
   try {

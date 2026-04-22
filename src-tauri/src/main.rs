@@ -7,9 +7,30 @@ use tauri::{
     tray::TrayIconBuilder,
 };
 
+#[tauri::command]
+fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window("settings") {
+        let _ = win.show();
+        let _ = win.set_focus();
+    } else {
+        let url = tauri::WebviewUrl::App("index.html?settings=1".into());
+        tauri::WebviewWindowBuilder::new(&app, "settings", url)
+            .title("tinker-desk Settings")
+            .inner_size(820.0, 620.0)
+            .resizable(true)
+            .decorations(true)
+            .transparent(false)
+            .always_on_top(false)
+            .build()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .invoke_handler(tauri::generate_handler![open_settings_window])
         .setup(|app| {
             // ── Main window setup ──────────────────────────────────
             if let Some(window) = app.get_webview_window("main") {
